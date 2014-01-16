@@ -1,12 +1,28 @@
 language: python
 python: 
   - "2.7"
+
+addons:
+  postgresql: 9.3
+
+before_install:
+  - sudo apt-get install subversion postgresql-server-dev-9.3
+  - wget https://plv8js.googlecode.com/files/plv8-1.4.1.zip
+  - unzip plv8-1.4.1.zip && cd plv8-1.4.1
+  - make static
+  - sudo cp plv8.so /usr/lib/postgresql/9.3/lib/
+  - sudo cp plv8--1.4.1.sql plv8.control /usr/share/postgresql/9.3/extension/
+  - cd .. && rm -rf plv8-1.4.1
+
 install:
   - "pip install ."
   - "pip install -r requirements.txt --use-mirrors"
   - "pip install coverage coveralls --use-mirrors"
+
 before_script:
   - psql -c 'create database jsonalchemy_test;' -U postgres 
+
 script: coverage run setup.py test
+
 after_success:
   - coveralls
