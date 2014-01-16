@@ -159,7 +159,7 @@ def models(engine):
 
     # test data set 1: all types, no nulls, no nesting
     data = []
-    for i in range(100):
+    for i in range(10):
         data.append(dict((k, random.choice(v['enum'])) for k, v in
             SCHEMAS.items()))
 
@@ -170,7 +170,7 @@ def models(engine):
 
     # test data set 2: nesting, some missing, and some nulls!
     json_data = []
-    for i in range(100):
+    for i in range(10000):
         data = {}
         if random.choice([True, False]):
             data['foo'] = {
