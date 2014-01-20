@@ -40,7 +40,7 @@ def _install(engine, path):
     conn = engine.connect()
     t = conn.begin()
     dirname = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dirname, path)) as f:
+    with open(os.path.join(dirname, 'sql', path)) as f:
         sql = f.read()
         conn.execute(sql)
     t.commit()
