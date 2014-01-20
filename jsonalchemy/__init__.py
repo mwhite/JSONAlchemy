@@ -278,6 +278,10 @@ def iter_properties(schema, path=''):
 
 
 def get_schema_properties(schema):
+    # todo: apply this to internal schema nodes too (for current known uses, it
+    # shouldn't really matter, since we're not generating any schemas that use
+    # the quantifiers, and we're only using the quantifiers to combine
+    # top-level schemas.
     properties_list = [schema.get('properties', {})]
     properties_list = list(itertools.chain(properties_list,
         *map(lambda key: [ v.get('properties', {})
