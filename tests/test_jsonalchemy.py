@@ -369,8 +369,11 @@ def test_invalid_schema_property_types(session, models):
         create_view = CreateJSONView(None, None, None, schema)
         session.execute(create_view)
 
-
+@pytest.mark.xfail
 def test_partial_index_creation(session, models):
+    # This will fail (no index-only scans, just index scans) until this
+    # Postgres issue is fixed:
+    # http://postgresql.1045698.n5.nabble.com/No-Index-Only-Scan-on-Partial-Index-td5773024.html
     q = session.query(models.Form)\
             .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
     
@@ -384,7 +387,7 @@ def test_partial_index_creation(session, models):
     for k, v in SCHEMAS.items():
         result = list(session.execute(
             'EXPLAIN ANALYZE SELECT "%s" from foo' % ("data." + k)))
-        matchobj = re.search('Index Scan using (.+?) on', result[0][0])
+        matchobj = re.search('Index Only Scan using (.+?) on', result[0][0])
         indexes.append(matchobj.group(1))
     assert len(indexes) == len(set(indexes))
 
