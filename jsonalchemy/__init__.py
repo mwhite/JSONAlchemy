@@ -58,6 +58,8 @@ class CreateJSONView(DDLElement):
         self.replace = replace
         self.drop_existing_indexes = False
 
+        self.columns = None
+
 
 @compiles(CreateJSONView)
 def visit_create_json_view(element, ddlcompiler, **kwargs):
@@ -67,13 +69,15 @@ def visit_create_json_view(element, ddlcompiler, **kwargs):
     json_schema = element.json_schema
 
     columns = []
-    for path, property in get_properties(json_schema):
+    properties = get_properties(json_schema)
+    element.columns = []
+    for p in properties:
         if isinstance(property, Array):
             pass
 
-        columns.append(property.json_func(json_column, path).\
-                label("%s.%s" % (json_column.name, path)))
-
+        p.column_name = "%s.%s" % (json_column.name, p.path)
+        columns.append(p.json_func(json_column, p.path).label(p.column_name))
+        element.columns.append(p)
 
     # Don't include columns in the the view that are part of an == condition in
     # the WHERE clause.
@@ -172,57 +176,66 @@ def get_partial_index_name(expr, query):
     return "%s_%s_%s" % (tablename, where_hash, expr_hash)
 
 
-class Type(object):
+class Object(object):
     json_func = None
     json_array_func = None
 
-    def __init__(self, enum=None, title=None):
+    def __init__(self, path, enum=None, title=None):
+        self.path = path
         self.enum = enum
         self.title = title
 
-class String(Type):
+    def __repr__(self):
+        return "%s(path=%r, enum=%r, title=%r)" % (
+                self.__class__.__name__, self.path, self.enum, self.title)
+
+    def __eq__(self, other):
+        return (type(self) == type(other) and self.path == other.path and
+                self.enum == other.enum and self.title == other.title)
+
+class String(Object):
     json_func = func.json_string
     json_array_func = func.json_string_array
 
-class Decimal(Type):
+class Decimal(Object):
     json_func = func.json_decimal
     json_array_func = func.json_decimal_array
 
-class Float(Type):
+class Float(Object):
     json_func = func.json_float
     json_array_func = func.json_float_array
 
-class Integer(Type):
+class Integer(Object):
     json_func = func.json_int
     json_array_func = func.json_int_array
 
-class Boolean(Type):
+class Boolean(Object):
     json_func = func.json_bool
     json_array_func = func.json_bool_array
 
-class DateTime(Type):
+class DateTime(Object):
     json_func = func.json_datetime
     json_array_func = func.json_datetime_array
 
-class DateTimeNoTZ(Type):
+class DateTimeNoTZ(Object):
     json_func = func.json_datetime_no_tz
     json_array_func = func.json_datetime_no_tz_array
 
-class Date(Type):
+class Date(Object):
     json_func = func.json_date
     json_array_func = func.json_date_array
 
-#class Time(Type):
+#class Time(Object):
     #json_func = func.json_time
     #json_array_func = func.json_time_array
 
-class Geopoint(Type):
+class Geopoint(Object):
     json_func = func.json_geopoint
     json_array_func = func.json_geopoint_array
 
 
-ArrayProperty = namedtuple('ArrayProperty', ['items'])
-Array = namedtuple('Array', ['items'])
+ArrayProperty = namedtuple('ArrayProperty', ['path', 'items'])
+Array = namedtuple('Array', ['path', 'items'])
 
 
 def get_properties(schema):
@@ -244,10 +257,10 @@ def iter_properties(schema, path=''):
         if type == 'array':
             itemtype = schema['items']['type']
             if itemtype == 'object':
-                obj = Array(schema['items'])
+                obj = Array(path, schema['items'])
             else:
                 # todo:
-                obj = ArrayProperty(itemtype, schema['items'].get('enum', []))
+                obj = ArrayProperty(path, itemtype, schema['items'].get('enum', []))
         else:
             if type == 'number':
                 our_type = Float
@@ -272,9 +285,9 @@ def iter_properties(schema, path=''):
             else:
                 raise InvalidJSONSchemaError("Unrecognized (type, format):"
                         + " (%s, %s)" % (type, format))
-            obj = our_type(schema.get('enum'), schema.get('title'))
+            obj = our_type(path, schema.get('enum'), schema.get('title'))
 
-        yield (path, obj)
+        yield obj
 
 
 def get_schema_properties(schema):

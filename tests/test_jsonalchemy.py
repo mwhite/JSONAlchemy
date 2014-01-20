@@ -16,6 +16,7 @@ from sqlalchemy.dialects import postgresql
 from jsonalchemy import (CreateJSONView as _CreateJSONView,
         InvalidJSONSchemaError, JSONSchemaConflict, install_plv8_json,
         install_plv8_json_postgis)
+import jsonalchemy as jsa
 
 CreateJSONView = partial(_CreateJSONView, replace=True)
 
@@ -348,6 +349,7 @@ def test_invalid_schema_property_types(session, models):
     with pytest.raises(InvalidJSONSchemaError):
         create_view = CreateJSONView(None, None, None, schema)
         session.execute(create_view)
+
     schema = {
         "type": "object",
         "properties": {
@@ -359,6 +361,7 @@ def test_invalid_schema_property_types(session, models):
     with pytest.raises(InvalidJSONSchemaError):
         create_view = CreateJSONView(None, None, None, schema)
         session.execute(create_view)
+
     schema = {
         "type": "object",
         "properties": {
@@ -368,6 +371,30 @@ def test_invalid_schema_property_types(session, models):
     with pytest.raises(InvalidJSONSchemaError):
         create_view = CreateJSONView(None, None, None, schema)
         session.execute(create_view)
+
+def test_create_json_view_stores_table_columns(session, models):
+    q = session.query(models.Form)\
+            .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
+    
+    create_view = CreateJSONView('foo', q, models.Form.data, {
+        'type': 'object',
+        'properties': SCHEMAS
+    })
+    session.execute(create_view)
+    # I'm lazy.
+    columns = create_view.columns
+    paths = [c.path for c in columns]
+    enums = [c.enum for c in columns]
+    titles = [c.title for c in columns]
+    assert len(columns) == len(SCHEMAS)   # + 1.  Leaving out primary key
+                                          # because it's not useful for BI
+                                          # schema generation, which is what
+                                          # this test is aimed at
+    assert len(paths) == len(set(paths))
+    assert len(enums) == len(set(
+        [tuple(e) if isinstance(e, list) else e for e in enums]))
+    assert len(titles) == len(set(titles))
+
 
 @pytest.mark.xfail
 def test_partial_index_creation(session, models):
