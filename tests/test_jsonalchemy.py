@@ -218,6 +218,29 @@ def test_basic_types(session, models):
                 assert v in SCHEMAS[prop]['enum']
 
 
+def test_date_part_columns_are_created(session, models):
+    q = session.query(models.Form)\
+            .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
+    
+    create_view = CreateJSONView('foo', q, models.Form.data, {
+        'type': 'object',
+        'properties': {
+            'datetime': SCHEMAS['datetime']
+        }
+    }, extract_date_parts=['year', 'month', 'day'])
+    session.execute(create_view)
+    #result = list(session.execute(
+        #'SELECT "data.datetime_year", "data.datetime_month", '
+        #'"data.datetime_day" FROM foo'))
+    result = list(session.execute("""SELECT
+        "data.datetime_year", "data.datetime_month", "data.datetime_day"
+    FROM foo"""))
+    assert all(
+        r["data.datetime_year"] in map(float, [2005, 2007]) and
+        r["data.datetime_month"] in map(float, [3, 4]) and
+        r["data.datetime_day"] in map(float, [2, 5]) for r in result)
+
+
 def test_array_types(session, models):
     """Tests all array types in a non-nested schema."""
     pass
@@ -372,7 +395,7 @@ def test_invalid_schema_property_types(session, models):
         create_view = CreateJSONView(None, None, None, schema)
         session.execute(create_view)
 
-def test_create_json_view_stores_table_columns(session, models):
+def test_create_json_view_returns_table_columns(session, models):
     q = session.query(models.Form)\
             .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
     

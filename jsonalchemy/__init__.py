@@ -48,12 +48,19 @@ def _install(engine, path):
 
 
 class CreateJSONView(DDLElement):
-    def __init__(self, name, query, json_column, json_schema, indexes=True,
-                 replace=False, drop_existing_indexes=False):
+    """
+    extract_date_parts -- a list of fields corresponding to SQL timestamp
+    subfields to create as separate calculated columns.
+    http://www.postgresql.org/docs/8.1/static/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT
+    """
+    def __init__(self, name, query, json_column, json_schema,
+            extract_date_parts=None, indexes=True,
+            replace=False, drop_existing_indexes=False):
         self.name = name
         self.query = query
         self.json_column = json_column
         self.json_schema = json_schema
+        self.extract_date_parts = extract_date_parts
         self.indexes = indexes
         self.replace = replace
         self.drop_existing_indexes = False
@@ -67,6 +74,7 @@ def visit_create_json_view(element, ddlcompiler, **kwargs):
     base_query = element.query
     json_column = element.json_column
     json_schema = element.json_schema
+    extract_date_parts = element.extract_date_parts
 
     columns = []
     properties = get_properties(json_schema)
@@ -75,8 +83,19 @@ def visit_create_json_view(element, ddlcompiler, **kwargs):
         if isinstance(property, Array):
             pass
 
-        p.column_name = "%s.%s" % (json_column.name, p.path)
-        columns.append(p.json_func(json_column, p.path).label(p.column_name))
+        column = p.json_func(json_column, p.path)
+        column_label = "%s.%s" % (json_column.name, p.path)
+
+        if extract_date_parts and \
+           isinstance(p, (DateTime, DateTimeNoTZ, Date)):
+            for part in extract_date_parts:
+                part_column = func.date_part_immutable(part, column)
+                columns.append(part_column.label(
+                    "%s_%s" % (column_label, part)))
+            p.date_parts = extract_date_parts
+
+        columns.append(column.label(column_label))
+        p.column_name = column_label
         element.columns.append(p)
 
     # Don't include columns in the the view that are part of an == condition in

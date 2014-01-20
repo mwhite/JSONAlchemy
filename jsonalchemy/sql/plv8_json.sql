@@ -2,6 +2,12 @@
 CREATE EXTENSION IF NOT EXISTS plv8;
 
 CREATE OR REPLACE FUNCTION
+date_part_immutable(text, anyelement) RETURNS DOUBLE PRECISION 
+    AS 'SELECT date_part($1, $2)'
+    LANGUAGE SQL
+    IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION
 json_string(data json, key text) RETURNS TEXT AS $$
 
     var ret = data,
