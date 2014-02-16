@@ -22,6 +22,13 @@ adaptable to other databases with similar functionality.
  [2]: http://www.postgresql.org/docs/9.3/static/indexes-partial.html
  [3]: http://www.postgresql.org/docs/9.3/static/sql-createview.html
 
+Due to a
+[bug](http://postgresql.1045698.n5.nabble.com/No-Index-Only-Scan-on-Partial-Index-td5773024.html)
+/ lack of an optimzation in Postgres, queries on created views will not trigger
+super-fast [index-only
+scans](https://wiki.postgresql.org/wiki/Index-only_scans) using the created
+partial indexes, but this is a temporary situation.
+
 Why?
 --
 
@@ -181,13 +188,6 @@ Support for defining objects as arrays (of simple values, or of complex objects)
 does not yet exist.
 
 All properties must have a single type defined.
-
-### Caveats
-
-Due to a [bug](http://postgresql.1045698.n5.nabble.com/No-Index-Only-Scan-on-Partial-Index-td5773024.html) / lack of a feature in Postgres, queries on created views will not
-trigger super-fast [Index-only
-scans](https://wiki.postgresql.org/wiki/Index-only_scans), but this should
-change eventually.
 
 License
 --
