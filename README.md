@@ -56,20 +56,13 @@ what's going on:
 
 
 ```sql
-CREATE TABLE form_types (
-	id SERIAL NOT NULL, 
-	name VARCHAR(200), 
-	PRIMARY KEY (id)
-);
 CREATE TABLE forms (
 	id SERIAL NOT NULL, 
 	type_id INTEGER, 
 	data JSON, 
 	PRIMARY KEY (id), 
-	FOREIGN KEY(type_id) REFERENCES form_types (id)
 );
 
-INSERT INTO form_types (name) VALUES ('type 1'), ('type 2');
 INSERT INTO forms (type_id, data) VALUES
     (1, '{"foo": {"bar": 5}, "baz": "spam"}'),
     (1, '{"foo": {"bar": 6}, "baz": "eggs"}'),
@@ -88,9 +81,6 @@ INSERT INTO forms (type_id, data) VALUES
 >>> metadata = MetaData(bind=engine)
 >>> class Form(Base):
 ...     __table__ = Table('forms', metadata, autoload=True)
-...
->>> class FormType(Base):
-...     __table__ = Table('form_types', metadata, autoload=True)
 ...
 >>> jsonalchemy.install_plv8_json(engine)
 CREATE OR REPLACE FUNCTION
