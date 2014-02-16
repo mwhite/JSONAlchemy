@@ -179,7 +179,6 @@ def visit_create_indexes(element, ddlcompiler, **kw):
         }
         sqls.append(sql)
 
-
     return ";".join(sqls)
 
 

@@ -29,15 +29,15 @@ class CreateView(DDLElement):
 def visit_create_view(element, ddlcompiler, **kw):
     select = inspect(element.query).selectable
     if element.replace:
-        create = "CREATE OR REPLACE"
+        sql = 'DROP VIEW IF EXISTS %s;' % element.name
     else:
-        create = "CREATE"
+        sql = ''
 
-    return "%s VIEW %s AS %s" % (
-        create,
+    sql += "CREATE VIEW %s AS %s" % (
         element.name,
         ddlcompiler.sql_compiler.process(select, literal_binds=True)
     )
+    return sql
 
 
 def short_hash(str):

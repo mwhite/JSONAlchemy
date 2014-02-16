@@ -2,13 +2,14 @@ import pytest
 import random
 import json
 import re
-#import copy
+import copy
 import datetime
 import dateutil.parser
 from functools import partial
 from decimal import Decimal
 
 from sqlalchemy import *
+from sqlalchemy import exc
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects import postgresql
@@ -16,7 +17,6 @@ from sqlalchemy.dialects import postgresql
 from jsonalchemy import (CreateJSONView as _CreateJSONView,
         InvalidJSONSchemaError, JSONSchemaConflict, install_plv8_json,
         install_plv8_json_postgis)
-import jsonalchemy as jsa
 
 CreateJSONView = partial(_CreateJSONView, replace=True)
 
@@ -417,6 +417,47 @@ def test_create_json_view_returns_table_columns(session, models):
     assert len(enums) == len(set(
         [tuple(e) if isinstance(e, list) else e for e in enums]))
     assert len(titles) == len(set(titles))
+
+
+def test_can_change_type_of_column_in_existing_view(session, models):
+    q = session.query(models.Form)\
+            .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
+    
+    create_view = CreateJSONView('foo', q, models.Form.data, {
+        'type': 'object',
+        'properties': SCHEMAS
+    })
+    session.execute(create_view)
+
+    schemas = copy.deepcopy(SCHEMAS)
+    schemas['string']['type'] = 'integer'
+
+    create_view = CreateJSONView('foo', q, models.Form.data, {
+        'type': 'object',
+        'properties': schemas
+    })
+    session.execute(create_view)
+
+
+def test_cant_replace_view_without_using_replace(session, models):
+    q = session.query(models.Form)\
+            .filter(models.Form.tenant_id == 1, models.Form.type_id == 1)
+    
+    create_view = CreateJSONView('foo', q, models.Form.data, {
+        'type': 'object',
+        'properties': SCHEMAS
+    })
+    session.execute(create_view)
+
+    with pytest.raises(exc.ProgrammingError):
+        try:
+            create_view = _CreateJSONView('foo', q, models.Form.data, {
+                'type': 'object',
+                'properties': SCHEMAS
+            })
+            session.execute(create_view)
+        finally:
+            session.rollback()
 
 
 @pytest.mark.xfail
