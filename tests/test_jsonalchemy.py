@@ -153,6 +153,7 @@ def models(engine):
     models.Tenant = Tenant
     models.FormType = FormType
     models.Form = Form
+    engine.execute("DROP TABLE forms CASCADE")
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     engine.execute("INSERT INTO tenants (name) VALUES ('mike'), ('bob')")
