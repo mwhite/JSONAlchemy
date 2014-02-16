@@ -188,3 +188,10 @@ Due to a [bug](http://postgresql.1045698.n5.nabble.com/No-Index-Only-Scan-on-Par
 trigger super-fast [Index-only
 scans](https://wiki.postgresql.org/wiki/Index-only_scans), but this should
 change eventually.
+
+License
+--
+
+Copyright 2012 Michael White
+
+Released under the MIT License. See LICENSE.txt.
