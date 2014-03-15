@@ -6,6 +6,7 @@ addons:
   postgresql: 9.3
 
 before_install:
+  - sudo apt-get update
   - sudo apt-get install subversion postgresql-server-dev-9.3
   - wget https://plv8js.googlecode.com/files/plv8-1.4.1.zip
   - unzip plv8-1.4.1.zip && cd plv8-1.4.1
