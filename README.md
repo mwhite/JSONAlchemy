@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/mwhite/jsonalchemy.png?label=ready&title=Ready)](https://waffle.io/mwhite/jsonalchemy)
 JSONAlchemy
 ==
 
