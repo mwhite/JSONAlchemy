@@ -3,9 +3,6 @@ JSONAlchemy
 
 [![Build Status](https://travis-ci.org/mwhite/JSONAlchemy.png?branch=master)](https://travis-ci.org/mwhite/JSONAlchemy)
 [![Coverage Status](https://coveralls.io/repos/mwhite/JSONAlchemy/badge.png?branch=master)](https://coveralls.io/r/mwhite/JSONAlchemy?branch=master)
-[![Dependency Status](https://gemnasium.com/mwhite/JSONAlchemy.png)](https://gemnasium.com/mwhite/JSONAlchemy)
-[![Code Health](https://landscape.io/github/mwhite/JSONAlchemy/master/landscape.png)](https://landscape.io/github/mwhite/JSONAlchemy/master)
-[![Stories in Ready](https://badge.waffle.io/mwhite/jsonalchemy.png?label=ready&title=Ready)](https://waffle.io/mwhite/jsonalchemy)
 
 JSONAlchemy is an experimental [SQLAlchemy](http://www.sqlalchemy.org) (0.8+)
 extension that lets you create a structured view of properties in a Postgres
