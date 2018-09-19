@@ -80,8 +80,8 @@ def visit_create_json_view(element, ddlcompiler, **kwargs):
     properties = get_properties(json_schema)
     element.columns = []
     for p in properties:
-        if isinstance(property, Array):
-            pass
+        if isinstance(p, Array):
+            continue
 
         column = p.json_func(json_column, p.path)
         column_label = "%s.%s" % (json_column.name, p.path)
