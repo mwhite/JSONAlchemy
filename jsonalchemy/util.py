@@ -10,12 +10,196 @@ from psycopg2.extensions import adapt as sqlescape
 
 
 __all__ = [
+    'SQL_FUNCTIONS',
     'CreateView',
     'CreateIndexes',
     'compile_element',
     'short_hash',
     'merge_dicts'
 ]
+
+
+SQL_FUNCTIONS = """
+CREATE OR REPLACE FUNCTION
+date_part_immutable(text, anyelement) RETURNS DOUBLE PRECISION 
+    AS 'SELECT date_part($1, $2)'
+    LANGUAGE SQL
+    IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION jsonb_string(data jsonb, VARIADIC path text[]) RETURNS TEXT AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::text;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_string(data json, VARIADIC path text[]) RETURNS TEXT AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::text;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_int(data jsonb, VARIADIC path text[]) RETURNS INTEGER AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::int;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_int(data json, VARIADIC path text[]) RETURNS INTEGER AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::int;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_float(data jsonb, VARIADIC path text[]) RETURNS FLOAT AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::float;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_float(data json, VARIADIC path text[]) RETURNS FLOAT AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::float;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_decimal(data jsonb, VARIADIC path text[]) RETURNS DECIMAL AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::text::decimal;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_decimal(data json, VARIADIC path text[]) RETURNS DECIMAL AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::text::decimal;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_bool(data jsonb, VARIADIC path text[]) RETURNS BOOLEAN AS $$
+    BEGIN
+        RETURN jsonb_extract_path(data, VARIADIC path)::bool;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_bool(data json, VARIADIC path text[]) RETURNS BOOLEAN AS $$
+    BEGIN
+        RETURN json_extract_path(data, VARIADIC path)::bool;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_datetime(data jsonb, VARIADIC path text[]) RETURNS TIMESTAMP AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::timestamp;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_datetime(data json, VARIADIC path text[]) RETURNS TIMESTAMP AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::timestamp;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_datetime_tz(data jsonb, VARIADIC path text[]) RETURNS TIMESTAMP WITH TIME ZONE AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::timestamptz;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_datetime_tz(data json, VARIADIC path text[]) RETURNS TIMESTAMP WITH TIME ZONE AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::timestamptz;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION jsonb_date(data jsonb, VARIADIC path text[]) RETURNS DATE AS $$
+    BEGIN
+        RETURN jsonb_extract_path_text(data, VARIADIC path)::date;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json_date(data json, VARIADIC path text[]) RETURNS DATE AS $$
+    BEGIN
+        RETURN json_extract_path_text(data, VARIADIC path)::date;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN null;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+DO $do$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM   pg_extension e
+        WHERE  e.extname = 'postgis'
+    ) THEN
+        CREATE OR REPLACE FUNCTION jsonb_geopoint(data jsonb, VARIADIC path text[]) RETURNS
+        GEOMETRY AS $json_geopoint$
+            BEGIN
+                RETURN ST_MakePoint(
+                    SPLIT_PART(
+                        jsonb_extract_path_text(data, VARIADIC path)::text, 
+                        ',', 1
+                    )::float,
+                    SPLIT_PART(
+                        jsonb_extract_path_text(data, VARIADIC path)::text,
+                        ',', 2
+                    )::float
+                );
+            EXCEPTION WHEN OTHERS THEN
+                RETURN null;
+            END;
+        $json_geopoint$ LANGUAGE plpgsql IMMUTABLE;
+        
+        CREATE OR REPLACE FUNCTION json_geopoint(data json, VARIADIC path text[]) RETURNS
+        GEOMETRY AS $json_geopoint$
+            BEGIN
+                RETURN ST_MakePoint(
+                    SPLIT_PART(
+                        json_extract_path_text(data, VARIADIC path)::text, 
+                        ',', 1
+                    )::float,
+                    SPLIT_PART(
+                        json_extract_path_text(data, VARIADIC path)::text,
+                        ',', 2
+                    )::float
+                );
+            EXCEPTION WHEN OTHERS THEN
+                RETURN null;
+            END;
+        $json_geopoint$ LANGUAGE plpgsql IMMUTABLE;
+    END IF;
+END$do$;
+
+"""
 
 
 class CreateView(DDLElement):
@@ -37,12 +221,12 @@ def visit_create_view(element, ddlcompiler, **kw):
         element.name,
         ddlcompiler.sql_compiler.process(select, literal_binds=True)
     )
-    return sql
+    return SQL_FUNCTIONS + ';' + sql
 
 
 def short_hash(str):
     return base64.urlsafe_b64encode(
-            hashlib.sha1(str).digest()[:10])[:-2]
+            hashlib.sha1(str).digest()[:10])[:-2].decode('utf-8')
 
 def compile_element(element, dialect):
     #statement = query.statement
@@ -50,11 +234,12 @@ def compile_element(element, dialect):
     comp.compile()
     enc = dialect.encoding
     params = {}
-    for k,v in comp.params.iteritems():
-        if isinstance(v, unicode):
+    for k,v in comp.params.items():
+        if isinstance(v, str):
             v = v.encode(enc)
         params[k] = sqlescape(v)
 
+    return comp.string % params
     return (comp.string.encode(enc) % params).decode(enc)
 
 

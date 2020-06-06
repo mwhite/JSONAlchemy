@@ -1,23 +1,27 @@
 JSONAlchemy
 ==
 
-[![Build Status](https://travis-ci.org/mwhite/JSONAlchemy.png?branch=master)](https://travis-ci.org/mwhite/JSONAlchemy)
-[![Coverage Status](https://coveralls.io/repos/mwhite/JSONAlchemy/badge.png?branch=master)](https://coveralls.io/r/mwhite/JSONAlchemy?branch=master)
+JSONAlchemy makes it easier to use a relational database to deal with data that
+you might otherwise use a NoSQL database for, such as nested JSON
+data, JSON data with missing values, and multi-tenant or similar JSON data
+with different schemas for each tenant.
 
-JSONAlchemy is an experimental [SQLAlchemy](http://www.sqlalchemy.org) (0.8+)
-extension that lets you create a structured view of properties in a Postgres
-[JSON](http://www.postgresql.org/docs/9.3/static/datatype-json.html) column
-given a [JSON Schema](http://json-schema.org).
+When using PostgreSQL 9.3+ with a JSON or JSONB column, JSONAlchemy
+lets you create a traditional table interface for accessing a subset of a JSON table
+by using a view specified in terms of a [JSON Schema](http://json-schema.org)
+and a query on the table.
 
-It makes use of some specialized features of PostgreSQL (9.2+), but it should be
-mostly adaptable to other databases with similar functionality.
+Each property in the view is backed by a unique [partial
+index](https://www.postgresql.org/docs/current/indexes-partial.html) to ensure
+optimum query performance using [index-only
+scans](https://wiki.postgresql.org/wiki/Index-only_scans).
+
+JSONAlchemy is implemented as an [SQLAlchemy](http://www.sqlalchemy.org) extension.
 
 Usage
 --
 
-See the tests for full working examples and additional options.
-
-You have a table with a Postgres JSON column.
+First, create a table with a Postgres JSON column.
 
 ```sql
 INSERT INTO forms (type_id, data) VALUES
@@ -27,7 +31,7 @@ INSERT INTO forms (type_id, data) VALUES
     (2, '{"foo": {"bar": "type 2 is ignored"}, "baz": 7}');
 ```
 
-You know a JSON Schema for a subset of the data.
+Then, define a JSON Schema for a subset of the data.
 
 ```python
 >>> q = session.query(Form).filter(Form.type_id == 1)
@@ -49,14 +53,12 @@ You know a JSON Schema for a subset of the data.
 ... }
 ```
 
-(`Form` is an SQLAlchemy declarative model.  You can use an existing model, or
-use SQLAlchemy's [database
-introspection](http://docs.sqlalchemy.org/en/rel_0_9/core/reflection.html).)
+(`Form` is an SQLAlchemy declarative model.  SQLAlchemy's [database
+introspection](http://docs.sqlalchemy.org/en/rel_0_9/core/reflection.html) can
+be used if SQLAlchemy models are not used for the tables being handled.)
 
-JSONAlchemy lets you create a structured view of your JSON data backed by a
-unique [partial
-index](http://www.postgresql.org/docs/9.3/static/indexes-partial.html) for each
-property. 
+Finally, create a view of the JSON data using an application-level pseudo-DDL
+statement in an SQLAlchemy session.
 
 ```python
 >>> from jsonalchemy import CreateJSONView
@@ -75,11 +77,7 @@ Voila!
         1 |            5 | spam
 ```
 
-Due to a
-[bug / missing feature in Postgres](http://postgresql.1045698.n5.nabble.com/No-Index-Only-Scan-on-Partial-Index-td5773024.html)
-, queries on created views will not trigger super-fast [index-only
-scans](https://wiki.postgresql.org/wiki/Index-only_scans) using the created
-partial indexes, but this is a temporary situation.
+See the tests for full working examples and additional options.
 
 ### Supported data types
 
@@ -90,12 +88,10 @@ int | integer | type: 'integer'
 float | float | type: 'number'
 decimal | string | type: 'string', format: 'decimal'
 boolean | boolean |  type: 'boolean'
-timestamp with timezone | [milliseconds since epoch, or ISO8601 or RFC 2822 string][datetime] | type: 'string', format: 'date-time'
+timestamp with timezone | milliseconds since epoch or ISO 8601 string | type : 'string', format: 'date-time'
 timestamp without timezone | same as above | type: 'string', format: 'date-time-no-tz'
 date | same as above | type: 'string', format: 'date'
 PostGIS point (Geometry) | "\<lng\>,\<lat\>" | type: 'string', format': 'geopoint'
-
- [datetime]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 
 ### JSON Schema support
 
@@ -110,6 +106,6 @@ All properties must have a single type defined.
 License
 --
 
-Copyright 2014 Michael White
+Copyright 2014-2020 Michael White
 
 Released under the MIT License. See LICENSE.txt.

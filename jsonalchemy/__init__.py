@@ -8,43 +8,39 @@ import operator
 import itertools
 from collections import namedtuple
 
-from sqlalchemy import func, inspection
+from sqlalchemy import func, inspection, cast
+from sqlalchemy import types
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import Index, Column
 from sqlalchemy.orm import defer
 from sqlalchemy.sql.ddl import CreateIndex, DDLElement
 from sqlalchemy.ext.compiler import compiles
 
-from .util import (CreateView, visit_create_view, compile_element, short_hash,
-        merge_dicts)
+from .util import (SQL_FUNCTIONS, CreateView, visit_create_view,
+                   compile_element, short_hash, merge_dicts)
+
+try:
+    GEOMETRY_IMPORTED = True
+    from geoalchemy2.types import Geometry
+except ImportError:
+    GEOMETRY_IMPORTED = False
+    Geometry = types.String
+    
 
 __all__ = [
-    'install_plv8_json',
     'CreateJSONView',
     'InvalidJSONSchemaError',
-    'JSONSchemaConflict'
+    'JSONSchemaConflict',
+    'GEOMETRY_IMPORTED'
 ]
+
 
 class InvalidJSONSchemaError(Exception):
     pass
 
+
 class JSONSchemaConflict(Exception):
     pass
-
-def install_plv8_json(engine):
-    _install(engine, 'plv8_json.sql')
-
-def install_plv8_json_postgis(engine):
-    _install(engine, 'plv8_json_postgis.sql')
-
-def _install(engine, path):
-    conn = engine.connect()
-    t = conn.begin()
-    dirname = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dirname, 'sql', path)) as f:
-        sql = f.read()
-        conn.execute(sql)
-    t.commit()
-    conn.close()
 
 
 class CreateJSONView(DDLElement):
@@ -83,11 +79,19 @@ def visit_create_json_view(element, ddlcompiler, **kwargs):
         if isinstance(p, Array):
             continue
 
-        column = p.json_func(json_column, p.path)
+        json_column_type = json_column.prop.columns[0].type
+        if (
+            isinstance(json_column_type, postgresql.JSONB) or 
+            json_column_type == postgresql.JSONB
+        ):
+            json_func = p.jsonb_func
+        else:
+            json_func = p.json_func
+
+        column = json_func(json_column, *p.path.split('.'))
         column_label = "%s.%s" % (json_column.name, p.path)
 
-        if extract_date_parts and \
-           isinstance(p, (DateTime, DateTimeNoTZ, Date)):
+        if extract_date_parts and isinstance(p, (DateTime, DateTimeNoTZ, Date)):
             for part in extract_date_parts:
                 part_column = func.date_part_immutable(part, column)
                 columns.append(part_column.label(
@@ -137,7 +141,7 @@ def visit_create_indexes(element, ddlcompiler, **kw):
     query = element.query
     selectable = inspection.inspect(query).selectable
 
-    sqls = []
+    sqls = [SQL_FUNCTIONS]
     for expr in element.expressions:
         name = get_partial_index_name(expr, query)
         # Postgres should be smart enough to use single-column indexes even if
@@ -186,17 +190,17 @@ def get_partial_index_name(expr, query):
     sql = compile_element(query.statement, query.session.bind.dialect)
     # hack hack hack
     where_sql = sql[sql.find('WHERE'):]
-    where_hash = short_hash(where_sql)
+    where_hash = short_hash(where_sql.encode('utf-8'))
 
     tablename = inspection.inspect(query).selectable._froms[0].name
     compiled_expr = compile_element(expr, query.session.bind.dialect)
-    expr_hash = short_hash(compiled_expr)
+    expr_hash = short_hash(compiled_expr.encode('utf-8'))
     return "%s_%s_%s" % (tablename, where_hash, expr_hash)
 
 
 class Object(object):
+    jsonb_func = None
     json_func = None
-    json_array_func = None
 
     def __init__(self, path, enum=None, title=None):
         self.path = path
@@ -212,44 +216,43 @@ class Object(object):
                 self.enum == other.enum and self.title == other.title)
 
 class String(Object):
+    jsonb_func = func.jsonb_string
     json_func = func.json_string
-    json_array_func = func.json_string_array
 
 class Decimal(Object):
+    jsonb_func = func.jsonb_decimal
     json_func = func.json_decimal
-    json_array_func = func.json_decimal_array
 
 class Float(Object):
+    jsonb_func = func.jsonb_float
     json_func = func.json_float
-    json_array_func = func.json_float_array
 
 class Integer(Object):
+    jsonb_func = func.jsonb_int
     json_func = func.json_int
-    json_array_func = func.json_int_array
 
 class Boolean(Object):
+    jsonb_func = func.jsonb_bool
     json_func = func.json_bool
-    json_array_func = func.json_bool_array
 
 class DateTime(Object):
-    json_func = func.json_datetime
-    json_array_func = func.json_datetime_array
+    jsonb_func = func.jsonb_datetime_tz
+    json_func = func.json_datetime_tz
 
 class DateTimeNoTZ(Object):
-    json_func = func.json_datetime_no_tz
-    json_array_func = func.json_datetime_no_tz_array
+    jsonb_func = func.jsonb_datetime
+    json_func = func.json_datetime
 
 class Date(Object):
+    jsonb_func = func.jsonb_date
     json_func = func.json_date
-    json_array_func = func.json_date_array
 
 #class Time(Object):
-    #json_func = func.json_time
-    #json_array_func = func.json_time_array
+    #json_type = types.Time
 
 class Geopoint(Object):
+    jsonb_func = func.jsonb_geopoint
     json_func = func.json_geopoint
-    json_array_func = func.json_geopoint_array
 
 
 ArrayProperty = namedtuple('ArrayProperty', ['path', 'items'])
