@@ -123,7 +123,9 @@ class JSONEncoder(json.JSONEncoder):
 @pytest.fixture(scope="module")
 def engine(request):
     engine = create_engine(
-            'postgresql://postgres:postgres@localhost/jsonalchemy_test')
+        'postgresql://postgres:postgres@localhost/jsonalchemy_test',
+        # echo=True
+    )
     request.addfinalizer(lambda: engine.dispose())
     return engine
 
@@ -162,7 +164,8 @@ def models(engine):
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     engine.execute("INSERT INTO tenants (name) VALUES ('mike'), ('bob')")
-    engine.execute("INSERT INTO form_types (name) VALUES ('type 1'), ('type 2')")
+    engine.execute("INSERT INTO form_types (name) VALUES ('type 1'), ('type 2'), "
+                   "('type 3')")
 
     # test data set 1: all types, no nulls, no nesting
     data = []
@@ -192,6 +195,27 @@ def models(engine):
         ",".join(["(1, 2, '%s')" % json.dumps(data, cls=JSONEncoder) 
                   for data in json_data]))
 
+    # test data set 3: array of objects
+    json_data = []
+    for i in range(100):
+        data = {
+            'id': i,
+            'array': [
+                {
+                    'baz': random.choice(range(4)),
+                    'quux': random.choice([True, False])
+                },
+                {
+                    'baz': random.choice(range(4)),
+                    'quux': random.choice([True, False])
+                }
+            ]
+        }
+        json_data.append(data)
+    engine.execute("INSERT INTO forms (tenant_id, type_id, data) VALUES " +
+                   ",".join(["(1, 3, '%s')" % json.dumps(data, cls=JSONEncoder)
+                             for data in json_data]))
+
     return models
 
 
@@ -213,10 +237,11 @@ def test_basic_types(session, models):
 
     result = list(session.execute('SELECT * from foo'))
     assert len(result)
-    assert len(result[0]) == len(SCHEMAS) + 1
+    assert len(result[0]) == len(SCHEMAS) + 2
 
     for row in result:
-        for k, v in [i for i in row.items() if i[0] != 'forms_id']:
+        for k, v in [i for i in row.items() if i[0] not in ('forms_id',
+                                                            'forms_data')]:
             prop = k.split('.')[1]
             python_type = SCHEMAS[prop]['_python_type']
             assert isinstance(v, python_type)
@@ -247,9 +272,55 @@ def test_date_part_columns_are_created(session, models):
         r["data.datetime_day"] in map(float, [2, 5]) for r in result)
 
 
-def test_array_types(session, models):
-    """Tests all array types in a non-nested schema."""
-    pass
+def test_array_of_objects(session, models):
+    q = session.query(models.Form)\
+        .filter(models.Form.tenant_id == 1, models.Form.type_id == 3)
+
+    session.execute('set search_path to "$user", public')
+    create_view = CreateJSONView('foobar', q, models.Form.data, {
+        'type': 'object',
+        'id_property': 'id',
+        'properties': {
+            'id': {
+                'type': 'integer'
+            },
+            'array': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'baz': {
+                            'type': 'integer'
+                        },
+                        'quux': {
+                            'type': 'boolean'
+                        }
+                    }
+                }
+            }
+        }
+    }, use_materialized_view=True)
+
+    session.execute(create_view)
+    session.commit()
+
+    assert list(session.execute("""SELECT definition FROM pg_views where
+                               viewname='foobar_array'"""))[0][0]
+    assert list(session.execute("""SELECT definition FROM pg_views where
+                               viewname='foobar'"""))[0][0]
+    assert list(session.execute("""SELECT definition FROM pg_matviews where
+                               matviewname='forms_array_json'"""))[0][0]
+    results = list(session.execute("""
+        SELECT foobar."data.id", foobar_array."array.baz",
+            foobar_array."array.quux"
+        FROM foobar JOIN foobar_array ON foobar."data.id" = foobar_array.parent_id
+    """))
+
+    assert len(results) == 100 * 2
+    for result in results:
+        assert result[0] in range(100)
+        assert result[1] in range(5)
+        assert result[2] in [True, False]
 
         
 def test_nested_data_with_nulls(session, models):
@@ -287,7 +358,7 @@ def test_nested_data_with_nulls(session, models):
 
     result = list(session.execute('SELECT * from foo2'))
     assert len(result)
-    assert len(result[0]) == 2 + 1
+    assert len(result[0]) == 2 + 2
 
     assert any(r['data.foo.bar'] is None for r in result)
     assert any(isinstance(r['data.foo.bar'], int) for r in result)
@@ -309,7 +380,7 @@ def _test_quantifiers(schema, models, session):
     result = list(session.execute("SELECT * from %s" % view_name))
     assert len(result)
     for row in result:
-        assert len(row) == 2 + 1
+        assert len(row) == 2 + 2
         assert isinstance(row['data.string'], str)
         assert isinstance(row['data.decimal'], Decimal)
 

@@ -203,30 +203,41 @@ END$do$;
 
 
 class CreateView(DDLElement):
-    def __init__(self, name, query, replace=False):
+    def __init__(self, name, query, replace=False, materialized=False):
         self.name = name
         self.query = query
         self.replace = replace
+        self.materialized = materialized
 
 
 @compiles(CreateView)
 def visit_create_view(element, ddlcompiler, **kw):
+    name = element.name
+    materialized = element.materialized
     select = inspect(element.query).selectable
+
     if element.replace:
-        sql = 'DROP VIEW IF EXISTS %s;' % element.name
+        sql = 'DROP VIEW IF EXISTS %s;\n' % element.name
     else:
         sql = ''
 
-    sql += "CREATE VIEW %s AS %s" % (
-        element.name,
+    sql += "%s VIEW %s AS %s;" % (
+        'CREATE' if not materialized else 'CREATE MATERIALIZED',
+        name,
         ddlcompiler.sql_compiler.process(select, literal_binds=True)
     )
+
+    if materialized:
+        sql += "\nREFRESH MATERIALIZED VIEW %s;" % element.name
+
     return SQL_FUNCTIONS + ';' + sql
 
 
 def short_hash(str):
-    return base64.urlsafe_b64encode(
+    hash = base64.urlsafe_b64encode(
             hashlib.sha1(str).digest()[:10])[:-2].decode('utf-8')
+    hash = hash.replace('-', '')
+    return hash
 
 def compile_element(element, dialect):
     #statement = query.statement
