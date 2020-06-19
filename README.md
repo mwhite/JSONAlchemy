@@ -142,7 +142,8 @@ according to the pattern `<view_name>_<property_name>`.
 
 ```sql
 =# SELECT my_view."data.id", my_view_foo."foo.baz", my_view_foo."foo.quux"
-     FROM my_view LEFT JOIN my_view_array ON my_view.forms_id = my_view_array;
+     FROM my_view LEFT JOIN my_view_array ON my_view.forms_id =
+         my_view_array.parent_id;
  data.id | foo.bar | foo.baz 
 ---------+---------+----------
        1 |       5 | spam 
