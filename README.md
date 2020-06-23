@@ -3,7 +3,7 @@ JSONAlchemy
 
 JSONAlchemy makes it easier to use a relational database to deal with data that
 you might otherwise use a NoSQL database for, such as nested JSON
-data, JSON data with missing values, and multi-tenant or similar JSON data
+data, JSON data with missing values, and multi-tenant or multi-user JSON data
 with different schemas for each tenant.
 
 When using PostgreSQL 9.4+ with a JSON or JSONB column, JSONAlchemy
@@ -142,8 +142,8 @@ according to the pattern `<view_name>_<property_name>`.
 
 ```sql
 =# SELECT my_view."data.id", my_view_foo."foo.baz", my_view_foo."foo.quux"
-     FROM my_view LEFT JOIN my_view_array ON my_view.forms_id =
-         my_view_array.parent_id;
+     FROM my_view LEFT JOIN my_view_foo ON my_view.forms_id =
+         my_view_foo.parent_id;
  data.id | foo.bar | foo.baz 
 ---------+---------+----------
        1 |       5 | spam 
