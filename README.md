@@ -141,7 +141,7 @@ A view containing all values for the array property will be created named
 according to the pattern `<view_name>_<property_name>`.
 
 ```sql
-=# SELECT my_view."data.id", my_view_foo."foo.baz", my_view_foo."foo.quux"
+=# SELECT my_view."data.id", my_view_foo."foo.bar", my_view_foo."foo.baz"
      FROM my_view LEFT JOIN my_view_foo ON my_view.forms_id =
          my_view_foo.parent_id;
  data.id | foo.bar | foo.baz 
