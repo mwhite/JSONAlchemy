@@ -4,7 +4,7 @@ JSONAlchemy
 JSONAlchemy makes it easier to use a relational database to deal with data that
 you might otherwise use a NoSQL database for, such as nested JSON
 data, JSON data with missing values, and multi-tenant or multi-user JSON data
-with different schemas for each tenant.
+with a different schema for each tenant or user.
 
 When using PostgreSQL 9.4+ with a JSON or JSONB column, JSONAlchemy
 lets you create a traditional table interface for accessing a subset of a JSON table
@@ -34,6 +34,11 @@ INSERT INTO forms (type_id, data) VALUES
 Then, define a JSON Schema for a subset of the data.
 
 ```python
+>>> from sqlalchemy import create_engine
+>>> from sqlalchemy.orm import sessionmaker
+>>> engine = create_engine('postgresql://user:password@localhost/')
+>>> Session = sessionmaker(bind=engine)
+>>> session = Session()
 >>> q = session.query(Form).filter(Form.type_id == 1)
 >>> schema = {
 ...     'type': 'object',
