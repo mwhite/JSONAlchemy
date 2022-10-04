@@ -170,7 +170,7 @@ API
 --
 
 ```python
-class CreateJSONView(DDLElement):
+class CreateJSONView(sqlalchemy.schema.DDLElement):
     """
     An SQLAlchemy DDL element that constructs a standard view of JSON properties
     and creates associated partial indexes that back the view.
