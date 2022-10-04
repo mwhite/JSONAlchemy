@@ -6,7 +6,7 @@ you might otherwise use a NoSQL database for, such as nested JSON
 data, JSON data with missing values, and multi-tenant or multi-user JSON data
 with a different schema for each tenant or user.
 
-When using PostgreSQL 9.4+ with a JSON or JSONB column, JSONAlchemy
+When using PostgreSQL with a JSON or JSONB column, JSONAlchemy
 lets you create a traditional table interface for accessing a subset of a JSON table
 by using a view specified in terms of a [JSON Schema](http://json-schema.org)
 and a query on the table.
