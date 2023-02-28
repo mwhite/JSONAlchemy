@@ -68,7 +68,7 @@ class CreateJSONView(DDLElement):
     indexes -- create indexes for the columns in the view (Default: True)
     replace -- drop the existing view with this name (Default: False)
     drop_existing_indexes -- drop existing indexes backing the view (Default: False)
-    use_materialialized_view -- use a materialized instead of non-materialized
+    use_materialized_view -- use a materialized instead of non-materialized
         view for intermediate views when creating an additional view of a
         JSON property containing an array of objects (Default: False)
     """
